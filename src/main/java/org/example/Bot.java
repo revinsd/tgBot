@@ -32,7 +32,7 @@ public class Bot extends TelegramLongPollingBot {
     private static final String BOT_USERNAME = "@truthOoorDareBot";
     private static final String SUCCESSFULLY_JOINED_GAME_TEMPLATE = "%s присоединился к игре!";
     private static final String PLAYER_ALREADY_JOINED_ERROR_TEMPLATE = "Игрок %s уже есть в игре";
-    private static final String PLAYERS_LIST_TEMPLATE = "Список игроков:\n %s";
+    private static final String PLAYERS_LIST_TEMPLATE = "Список игроков:\n%s";
     private static final String SUCCESSFULLY_LEFT_GAME_TEMPLATE = "%s покинул игру";
     private static final String MINIMUM_PLAYERS_ERROR = "Для начала требуется, как минимум, два игрока";
     private static final String NULL_USERNAME_ERROR = "Для участия игрок должен иметь никнейм";

@@ -121,8 +121,9 @@ public class TruthOrDare {
     public String getNextPlayer() {
         if (counter == players.size())
             counter = 0;
-        currentPlayer = players.get(++counter);
-        return players.get(counter);
+        currentPlayer = players.get(counter);
+        counter++;
+        return currentPlayer;
     }
 
     public String getPlayersList(){
