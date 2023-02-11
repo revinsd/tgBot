@@ -10,6 +10,8 @@ public class TruthOrDare {
     @Getter
     private final List<String> players = new ArrayList<>();
     @Getter
+    private String currentPlayer;
+    @Getter
     private static final String rules = """
             Правила очень просты:
                  Если игрок отвечает: «Правда», то он должен будет правдиво ответить на вопрос, который ему будет задан.
@@ -119,7 +121,8 @@ public class TruthOrDare {
     public String getNextPlayer() {
         if (counter == players.size())
             counter = 0;
-        return players.get(counter++);
+        currentPlayer = players.get(++counter);
+        return players.get(counter);
     }
 
     public String getPlayersList(){

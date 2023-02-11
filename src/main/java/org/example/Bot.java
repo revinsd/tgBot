@@ -4,7 +4,6 @@ import lombok.SneakyThrows;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -24,8 +23,9 @@ public class Bot extends TelegramLongPollingBot {
 
     private static final String GAME_IS_STARTING = "Игра начинается!";
     private static final String READY = "Готово!";
-    private static final String GAME_ALLREADY_EXISTS_ERROR = "Для данного чата уже создана игра";
-    private static final String NEW_GAME_CREATED = "Игра успешно создана, все желающие могут присоединиться";
+    private static final String GAME_ALREADY_EXISTS_ERROR = "Для данного чата уже создана игра";
+    private static final String NEW_GAME_CREATED = "Игра успешно создана, все желающие могут присоединиться, " +
+            "для старта воспользуйтесь командой '/startgame'";
     private static final String GAME_ALLREADY_STARTED_ERROR = "Игра уже запущена, остановить игру можно коммандой /stopgame";
     private static final String JOINING_ACTIVE_GAME_ERROR = "Невозможно подключиться к активной игре, дождитесь завершения";
     private static final String BOT_TOKEN = "5552914198:AAEtfC6HqahObIsiQa-wKRmsaoJp92f2ElM";
@@ -34,6 +34,8 @@ public class Bot extends TelegramLongPollingBot {
     private static final String PLAYER_ALREADY_JOINED_ERROR_TEMPLATE = "Игрок %s уже есть в игре";
     private static final String PLAYERS_LIST_TEMPLATE = "Список игроков:\n %s";
     private static final String SUCCESSFULLY_LEFT_GAME_TEMPLATE = "%s покинул игру";
+    private static final String MINIMUM_PLAYERS_ERROR = "Для начала требуется, как минимум, два игрока";
+    private static final String NULL_USERNAME_ERROR = "Для участия игрок должен иметь никнейм";
     private static final List<List<InlineKeyboardButton>> TRUTH_OR_DARE_TEXT = List.of(List.of(
             InlineKeyboardButton.builder()
                     .text("Правда")
@@ -63,11 +65,19 @@ public class Bot extends TelegramLongPollingBot {
         var game = games.get(chatId);
         var username = "@" + callbackQuery.getFrom().getUserName();
         switch (callbackQuery.getData()) {
-            case "Question" -> printWithButton(game.getNewQuestion(), READY, "Ready", chatId);
-            case "Action" -> printWithButton(game.getNewAction(), READY, "Ready", chatId);
-            case "Ready" -> nextPlayer(chatId);
+            case "Question" -> {
+                if (checkCurrentPlayer(game, username, chatId))
+                    printWithButton(username + ", " + game.getNewQuestion(), READY, "Ready", chatId);
+            }
+            case "Action" -> {
+                if (checkCurrentPlayer(game, username, chatId))
+                    printWithButton(username + ", " + game.getNewAction(), READY, "Ready", chatId);
+            }
+            case "Ready" -> {
+                if (checkCurrentPlayer(game, username, chatId))
+                    nextPlayer(chatId);
+            }
             case "JoinGame" -> joinGame(chatId, username);
-            case "StartGame" -> startGame(chatId);
         }
     }
 
@@ -80,16 +90,16 @@ public class Bot extends TelegramLongPollingBot {
                 case "/creategame" -> createGame(chatId);
                 case "/stopgame" -> stopGame(chatId);
                 case "/leavegame" -> leaveGame(chatId, username);
+                case "/joingame" -> joinGame(chatId, username);
+                case "/startgame" -> startGame(chatId);
             }
         }
     }
-
 
     @Override
     public String getBotUsername() {
         return BOT_USERNAME;
     }
-
 
     public String getBotToken() {
         return BOT_TOKEN;
@@ -105,13 +115,22 @@ public class Bot extends TelegramLongPollingBot {
                 .orElse(null);
     }
 
+    private boolean checkCurrentPlayer(TruthOrDare game, String username, String chatId) {
+        if (!game.getCurrentPlayer().equals(username)) {
+            print(format("%s, дождись своего хода", username), chatId);
+            return false;
+        }
+        return true;
+    }
 
     private void startGame(String chatId) {
         if (isGameExists(chatId)) {
             var game = games.get(chatId);
             if (game.isStarted())
                 print(GAME_ALLREADY_STARTED_ERROR, chatId);
-            else {
+            else if (game.getPlayers().size() < 2) {
+                print(MINIMUM_PLAYERS_ERROR, chatId);
+            } else {
                 game.startNew();
                 print(format(PLAYERS_LIST_TEMPLATE, game.getPlayersList()), chatId);
                 print(GAME_IS_STARTING, chatId);
@@ -138,6 +157,10 @@ public class Bot extends TelegramLongPollingBot {
     private void joinGame(String chatId, String username) {
         if (isGameExists(chatId)) {
             var game = games.get(chatId);
+            if (username.equals("@null")) {
+                print(NULL_USERNAME_ERROR, chatId);
+                return;
+            }
             if (game.getPlayers().contains(username)) {
                 print(format(PLAYER_ALREADY_JOINED_ERROR_TEMPLATE, username), chatId);
                 return;
@@ -160,15 +183,11 @@ public class Bot extends TelegramLongPollingBot {
                     InlineKeyboardButton.builder()
                             .text("Присоединиться")
                             .callbackData("JoinGame")
-                            .build(),
-                    InlineKeyboardButton.builder()
-                            .text("Начать игру")
-                            .callbackData("StartGame")
                             .build()
             );
             printButtons(NEW_GAME_CREATED, buttons, chatId);
         } else
-            print(GAME_ALLREADY_EXISTS_ERROR, chatId);
+            print(GAME_ALREADY_EXISTS_ERROR, chatId);
     }
 
     private void leaveGame(String chatId, String username) {
@@ -191,20 +210,16 @@ public class Bot extends TelegramLongPollingBot {
         );
     }
 
-    //@SneakyThrows(value = TelegramApiException.class)
+    @SneakyThrows(value = TelegramApiException.class)
     private void printButtons(String text, List<InlineKeyboardButton> buttons, String chatId) {
-        try {
-            execute(SendMessage.builder()
-                    .text(text)
-                    .chatId(chatId)
-                    .replyMarkup(InlineKeyboardMarkup.builder()
-                            .keyboard(List.of(buttons))
-                            .build()
-                    ).build()
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        execute(SendMessage.builder()
+                .text(text)
+                .chatId(chatId)
+                .replyMarkup(InlineKeyboardMarkup.builder()
+                        .keyboard(List.of(buttons))
+                        .build()
+                ).build()
+        );
     }
 
     @SneakyThrows(value = TelegramApiException.class)

@@ -7,8 +7,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="tgBot" />
         <module name="ChatBot" />
       </profile>
+      <profile name="lombok" enabled="true" />
     </annotationProcessing>
   </component>
 </project>
