@@ -66,15 +66,15 @@ public class Bot extends TelegramLongPollingBot {
         var username = "@" + callbackQuery.getFrom().getUserName();
         switch (callbackQuery.getData()) {
             case "Question" -> {
-                if (checkCurrentPlayer(game, username, chatId))
+                if (game.isStarted() && checkCurrentPlayer(game, username, chatId))
                     printWithButton(username + ", " + game.getNewQuestion(), READY, "Ready", chatId);
             }
             case "Action" -> {
-                if (checkCurrentPlayer(game, username, chatId))
+                if (game.isStarted() && checkCurrentPlayer(game, username, chatId))
                     printWithButton(username + ", " + game.getNewAction(), READY, "Ready", chatId);
             }
             case "Ready" -> {
-                if (checkCurrentPlayer(game, username, chatId))
+                if (game.isStarted() && checkCurrentPlayer(game, username, chatId))
                     nextPlayer(chatId);
             }
             case "JoinGame" -> joinGame(chatId, username);
@@ -85,7 +85,7 @@ public class Bot extends TelegramLongPollingBot {
         var chatId = message.getChatId().toString();
         var username = "@" + message.getFrom().getUserName();
         if (message.hasText() && message.hasEntities()) {
-            String command = getCommand(message);
+            String command = getCommand(message).replace("@truthOoorDareBot","").trim();
             switch (command) {
                 case "/creategame" -> createGame(chatId);
                 case "/stopgame" -> stopGame(chatId);
@@ -148,10 +148,11 @@ public class Bot extends TelegramLongPollingBot {
     private void stopGame(String chatId) {
         if (isGameExists(chatId)) {
             var game = games.get(chatId);
-            if (game.isStarted())
+            if (game.isStarted()){
                 game.stop();
+                print("Игра остановлена",chatId);
+            }
         }
-
     }
 
     private void joinGame(String chatId, String username) {
